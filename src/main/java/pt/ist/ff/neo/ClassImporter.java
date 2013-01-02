@@ -93,6 +93,7 @@ public class ClassImporter {
 	     * Commit the Transaction every "maxTxSize" records.
 	     */
 	    if (count % maxTxSize == 0) {
+		System.out.println("Committing TX. Got " + count + " so far");
 		tx.success();
 		tx.finish();
 		tx = db.beginTx();
