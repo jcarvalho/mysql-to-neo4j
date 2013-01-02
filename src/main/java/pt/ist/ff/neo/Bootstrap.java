@@ -11,7 +11,6 @@ import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.index.Index;
 
-import pt.ist.fenixframework.pstm.PersistentRoot;
 import dml.DomainClass;
 import dml.DomainModel;
 
@@ -37,7 +36,7 @@ public class Bootstrap {
 
 		logger.trace("\t-> Bootstrapping " + domainClass.getFullName());
 
-		if (domainClass.getFullName().equals(PersistentRoot.class.getName())) {
+		if (domainClass.getFullName().equals("pt.ist.fenixframework.pstm.PersistentRoot")) {
 
 		    logger.trace("\t\t-> Warning, class not bootstrapped!");
 		    // TODO How to handle this?
