@@ -1,21 +1,19 @@
 package pt.ist.ff.neo;
 
+import java.io.InputStream;
 import java.net.URL;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Scanner;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.graphdb.Node;
-import org.neo4j.graphdb.Relationship;
-import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.factory.GraphDatabaseFactory;
-import org.neo4j.tooling.GlobalGraphOperations;
 
 import pt.ist.fenixframework.pstm.dml.FenixDomainModel;
 import dml.DmlCompiler;
@@ -30,36 +28,22 @@ public class BootStrapTest {
 
     @Before
     public void initDomainModel() {
-	try {
 
-	    URL dml = this.getClass().getResource("/domain_model.dml");
-	    URL scheduler = this.getClass().getResource("/scheduler-plugin.dml");
+	InputStream stream = this.getClass().getResourceAsStream("/dmls.conf");
+	try (Scanner scanner = new Scanner(stream)) {
+
 	    List<URL> urls = new ArrayList<URL>();
-	    urls.add(scheduler);
-	    urls.add(dml);
+
+	    while (scanner.hasNext()) {
+		urls.add(new URL(scanner.nextLine()));
+	    }
+
 	    model = DmlCompiler.getDomainModelForURLs(FenixDomainModel.class, urls);
 
-	    db = new GraphDatabaseFactory().newEmbeddedDatabase("/Users/jpc/Desktop/ff");
+	    String graphDbLocation = System.getProperty("graphDBLocation", "/sandbox/ff");
 
-	    // Delete everything!
+	    db = new GraphDatabaseFactory().newEmbeddedDatabase(graphDbLocation);
 
-	    Transaction tx = db.beginTx();
-	    try {
-
-		GlobalGraphOperations at = GlobalGraphOperations.at(db);
-
-		for (Relationship relationship : at.getAllRelationships()) {
-		    relationship.delete();
-		}
-
-		for (Node node : at.getAllNodes()) {
-		    if (node.getId() != 0)
-			node.delete();
-		}
-		tx.success();
-	    } finally {
-		tx.finish();
-	    }
 	} catch (Exception e) {
 	    e.printStackTrace();
 	    throw new RuntimeException(e);
@@ -71,7 +55,7 @@ public class BootStrapTest {
 
 	Connection con = null;
 
-	String url = "jdbc:mysql://localhost:3306/bennu";
+	String url = "jdbc:mysql://localhost:3306/dot";
 	String user = "root";
 	String password = "";
 
@@ -84,6 +68,7 @@ public class BootStrapTest {
 		ClassImporter.importClass(db, domainClass, con);
 	    }
 	} catch (SQLException e) {
+	    e.printStackTrace();
 	    throw new RuntimeException(e);
 	}
 

@@ -18,15 +18,16 @@ import dml.Slot;
 
 public class ClassImporter {
 
+    private static final int maxTxSize = Integer.parseInt(System.getProperty("maxTxSize", "10000"));
+
     public static void importClass(GraphDatabaseService db, DomainClass domainClass, Connection con) throws SQLException {
 
 	Node domainClassNode = db.index().forNodes("className").get("className", domainClass.getFullName()).getSingle();
 
 	Index<Node> oidIndex = db.index().forNodes("oid");
 
-	if (domainClassNode == null) {
-	    System.out.println("NULL!!!");
-	    throw new RuntimeException();
+	if (domainClassNode == null && domainClass.getName().equals("PersistentRoot")) {
+	    return;
 	}
 
 	DomainClass topClass = getTopClass(domainClass);
@@ -54,64 +55,51 @@ public class ClassImporter {
 	int count = 0;
 
 	Transaction tx = db.beginTx();
-	try {
 
-	    while (rs.next()) {
-		count++;
+	while (rs.next()) {
+	    count++;
 
-		Node newNode = db.createNode();
+	    Node newNode = db.createNode();
 
-		domainClassNode.createRelationshipTo(newNode, Relations.INSTANCE_OF);
+	    domainClassNode.createRelationshipTo(newNode, Relations.INSTANCE_OF);
 
-		DomainClass cls = domainClass;
+	    DomainClass cls = domainClass;
 
-		while (cls != null) {
+	    while (cls != null) {
 
-		    for (Slot slot : cls.getSlotsList()) {
-			Object obj = rs.getObject(getDBName(slot.getName()));
+		for (Slot slot : cls.getSlotsList()) {
+		    Object obj = rs.getObject(getDBName(slot.getName()));
 
-			if (obj instanceof Timestamp) {
-			    Timestamp timestamp = (Timestamp) obj;
+		    if (obj instanceof Timestamp) {
+			Timestamp timestamp = (Timestamp) obj;
 
-			    obj = new DateTime(timestamp.getTime()).toString();
-			}
-
-			if (obj != null)
-			    newNode.setProperty(slot.getName(), obj);
+			obj = new DateTime(timestamp.getTime()).toString();
 		    }
 
-		    cls = (DomainClass) cls.getSuperclass();
+		    if (obj != null)
+			newNode.setProperty(slot.getName(), obj);
 		}
 
-		Long oid = rs.getLong("OID");
-
-		newNode.setProperty("oid", oid);
-
-		oidIndex.add(newNode, "oid", oid);
-		/*
-		 * ResultSetMetaData md = rs.getMetaData();
-		 * 
-		 * for (int i = 1; i <= md.getColumnCount(); i++) {
-		 * 
-		 * String colName = md.getColumnName(i); if
-		 * (colName.equals("ID_INTERNAL") ||
-		 * colName.equals("OJB_CONCRETE_CLASS")) continue;
-		 * 
-		 * if (colName.startsWith("OID_")) { continue; } Object value;
-		 * 
-		 * switch (md.getColumnType(i)) { case (Types.BIGINT): value =
-		 * rs.getObject(i) == null ? null : rs.getLong(i); break;
-		 * default: value = rs.getObject(i); }
-		 * 
-		 * if (colName.equals("OID")) colName = "oid";
-		 * 
-		 * if (value != null) newNode.setProperty(colName, value); }
-		 */
+		cls = (DomainClass) cls.getSuperclass();
 	    }
-	    tx.success();
-	} finally {
-	    tx.finish();
+
+	    Long oid = rs.getLong("OID");
+
+	    newNode.setProperty("oid", oid);
+
+	    oidIndex.add(newNode, "oid", oid);
+
+	    /*
+	     * Commit the Transaction every "maxTxSize" records.
+	     */
+	    if (count % maxTxSize == 0) {
+		tx.success();
+		tx.finish();
+		tx = db.beginTx();
+	    }
 	}
+	tx.success();
+	tx.finish();
 
 	rs.close();
 	st.close();
