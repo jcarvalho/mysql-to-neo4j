@@ -29,7 +29,7 @@ public class Bootstrap {
 	    // Ensure OID index exists
 	    db.index().forNodes("oid");
 
-	    logger.trace("Acquired root node, created indexes. Now boostrapping " + model.getDomainClasses().size()
+	    logger.info("Acquired root node, created indexes. Now boostrapping " + model.getDomainClasses().size()
 		    + " domain classes.");
 
 	    for (DomainClass domainClass : model.getDomainClasses()) {
@@ -38,7 +38,7 @@ public class Bootstrap {
 
 		if (domainClass.getFullName().equals("pt.ist.fenixframework.pstm.PersistentRoot")) {
 
-		    logger.trace("\t\t-> Warning, class not bootstrapped!");
+		    logger.warn("\t\t-> Warning, class not bootstrapped: " + domainClass.getFullName());
 		    // TODO How to handle this?
 		    continue;
 		}
@@ -61,12 +61,14 @@ public class Bootstrap {
 		if (logger.isTraceEnabled()) {
 		    logger.trace("\t\t-> Mapped class to ID: " + classId);
 		}
+
+		rs.close();
 	    }
 
 	    tx.success();
 	} finally {
 	    tx.finish();
-	    logger.trace("--> Finished Bootstrapping classes <--");
+	    logger.info("--> Finished Bootstrapping classes <--");
 	}
     }
 }

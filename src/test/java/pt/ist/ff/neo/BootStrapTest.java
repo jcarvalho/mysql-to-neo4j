@@ -19,6 +19,7 @@ import pt.ist.fenixframework.pstm.dml.FenixDomainModel;
 import dml.DmlCompiler;
 import dml.DomainClass;
 import dml.DomainModel;
+import dml.DomainRelation;
 
 public class BootStrapTest {
 
@@ -26,11 +27,12 @@ public class BootStrapTest {
 
     private GraphDatabaseService db;
 
+    private Connection con = null;
+
     @Before
     public void initDomainModel() {
 
-	InputStream stream = this.getClass().getResourceAsStream("/dmls.conf");
-	try (Scanner scanner = new Scanner(stream)) {
+	try (InputStream stream = this.getClass().getResourceAsStream("/dmls.conf"); Scanner scanner = new Scanner(stream)) {
 
 	    List<URL> urls = new ArrayList<URL>();
 
@@ -44,6 +46,11 @@ public class BootStrapTest {
 
 	    db = new GraphDatabaseFactory().newEmbeddedDatabase(graphDbLocation);
 
+	    String url = "jdbc:mysql://localhost:3306/dot";
+	    String user = "root";
+	    String password = "";
+	    con = DriverManager.getConnection(url, user, password);
+
 	} catch (Exception e) {
 	    e.printStackTrace();
 	    throw new RuntimeException(e);
@@ -53,20 +60,17 @@ public class BootStrapTest {
     @Test
     public void create() {
 
-	Connection con = null;
-
-	String url = "jdbc:mysql://localhost:3306/dot";
-	String user = "root";
-	String password = "";
-
 	try {
-	    con = DriverManager.getConnection(url, user, password);
-
 	    Bootstrap.bootStrap(con, db, model);
 
 	    for (DomainClass domainClass : model.getDomainClasses()) {
 		ClassImporter.importClass(db, domainClass, con);
 	    }
+
+	    for (DomainRelation relation : model.getDomainRelations()) {
+		RelationImporter.importRelation(db, relation, con);
+	    }
+
 	} catch (SQLException e) {
 	    e.printStackTrace();
 	    throw new RuntimeException(e);
@@ -75,7 +79,8 @@ public class BootStrapTest {
     }
 
     @After
-    public void tear() {
+    public void tear() throws SQLException {
 	db.shutdown();
+	con.close();
     }
 }

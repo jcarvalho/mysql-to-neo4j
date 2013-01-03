@@ -7,6 +7,8 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Timestamp;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.joda.time.DateTime;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
@@ -17,6 +19,8 @@ import dml.DomainClass;
 import dml.Slot;
 
 public class ClassImporter {
+
+    private static final Logger logger = LogManager.getLogger(ClassImporter.class);
 
     private static final int maxTxSize = Integer.parseInt(System.getProperty("maxTxSize", "10000"));
 
@@ -30,27 +34,29 @@ public class ClassImporter {
 	    return;
 	}
 
-	DomainClass topClass = getTopClass(domainClass);
+	if (domainClassNode == null) {
+	    throw new RuntimeException("Bootstrapping went wrong, node missing for class: " + domainClass.getFullName());
+	}
 
-	String dbName = getDBName(topClass.getName());
+	DomainClass topClass = Util.getTopClass(domainClass);
+
+	String dbName = Util.getDBName(topClass.getName());
 
 	Statement st = con.createStatement();
 	ResultSet rs;
 
 	DatabaseMetaData md = con.getMetaData();
 
-	ResultSet colRs = md.getColumns(null, null, dbName, "OJB_CONCRETE_CLASS");
-
-	if (colRs.next()) {
-	    rs = st.executeQuery("SELECT * FROM " + dbName + " WHERE OJB_CONCRETE_CLASS = '" + domainClass.getFullName()
-		    + "' OR OJB_CONCRETE_CLASS = ''");
-	} else {
-	    rs = st.executeQuery("SELECT * FROM " + dbName);
+	try (ResultSet colRs = md.getColumns(null, null, dbName, "OJB_CONCRETE_CLASS")) {
+	    if (colRs.next()) {
+		rs = st.executeQuery("SELECT * FROM " + dbName + " WHERE OJB_CONCRETE_CLASS = '" + domainClass.getFullName()
+			+ "' OR OJB_CONCRETE_CLASS = ''");
+	    } else {
+		rs = st.executeQuery("SELECT * FROM " + dbName);
+	    }
 	}
 
-	colRs.close();
-
-	System.out.println("Class " + domainClass.getFullName() + " maps to " + dbName);
+	logger.info("Retrieving instances of " + domainClass.getFullName() + " from SQL table " + dbName);
 
 	int count = 0;
 
@@ -68,7 +74,7 @@ public class ClassImporter {
 	    while (cls != null) {
 
 		for (Slot slot : cls.getSlotsList()) {
-		    Object obj = rs.getObject(getDBName(slot.getName()));
+		    Object obj = rs.getObject(Util.getDBName(slot.getName()));
 
 		    if (obj instanceof Timestamp) {
 			Timestamp timestamp = (Timestamp) obj;
@@ -93,7 +99,7 @@ public class ClassImporter {
 	     * Commit the Transaction every "maxTxSize" records.
 	     */
 	    if (count % maxTxSize == 0) {
-		System.out.println("Committing TX. Got " + count + " so far");
+		logger.trace("Committing Neo4j Transaction. Got " + count + " objects so far.");
 		tx.success();
 		tx.finish();
 		tx = db.beginTx();
@@ -105,30 +111,8 @@ public class ClassImporter {
 	rs.close();
 	st.close();
 
-	System.out.println(dbName + " got " + count);
-    }
+	logger.info("Finished importing. Copied " + count + " objects.");
 
-    private static DomainClass getTopClass(DomainClass domainClass) {
-	if (domainClass.getSuperclass() == null)
-	    return domainClass;
-	return getTopClass((DomainClass) domainClass.getSuperclass());
-    }
-
-    private static String getDBName(String name) {
-
-	StringBuilder str = new StringBuilder();
-
-	for (int i = 0; i < name.length(); i++) {
-	    char c = name.charAt(i);
-
-	    if (Character.isUpperCase(c) && i != 0) {
-		str.append("_");
-	    }
-
-	    str.append(Character.toUpperCase(c));
-	}
-
-	return str.toString();
     }
 
 }
