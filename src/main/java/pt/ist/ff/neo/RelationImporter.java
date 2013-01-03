@@ -32,7 +32,7 @@ public class RelationImporter {
 	    return;
 	}
 
-	Role otherRole = getOtherRole(relation);
+	Role otherRole = dataRole.getOtherRole();
 
 	RelationshipType type = new RelationshipType() {
 
@@ -70,8 +70,8 @@ public class RelationImporter {
 		Node other = oidIndex.get("oid", otherOid).getSingle();
 
 		if (one == null || other == null) {
-		    logger.error("\tNode does not exist! Original OID: " + oid + ". Other OID : " + otherOid);
-		    logger.error("One: " + one + " Other: " + other);
+		    logger.error("\t\tNode does not exist! Original OID: " + oid + ". Other OID : " + otherOid);
+		    logger.error("\t\t\tOne: " + one + " Other: " + other);
 		    continue;
 		}
 
@@ -88,19 +88,18 @@ public class RelationImporter {
 
     }
 
-    private static Role getOtherRole(DomainRelation relation) {
-	return getDataRole(relation);
-    }
-
     private static Role getDataRole(DomainRelation relation) {
 
-	if (relation.getFirstRole().getMultiplicityUpper() != Role.MULTIPLICITY_MANY)
+	if (relation.getFirstRole().getMultiplicityUpper() != 1 && relation.getSecondRole().getMultiplicityUpper() != 1)
+	    return null;
+
+	if (relation.getFirstRole().getMultiplicityUpper() != 1)
 	    return relation.getFirstRole();
 
-	if (relation.getSecondRole().getMultiplicityUpper() != Role.MULTIPLICITY_MANY)
+	if (relation.getSecondRole().getMultiplicityUpper() != 1)
 	    return relation.getSecondRole();
 
-	return null;
+	return relation.getFirstRole();
     }
 
 }
