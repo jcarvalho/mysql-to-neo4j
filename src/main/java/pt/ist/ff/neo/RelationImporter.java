@@ -21,6 +21,8 @@ public class RelationImporter {
 
     private static final Logger logger = LogManager.getLogger(RelationImporter.class);
 
+    private static final int maxTxSize = Integer.parseInt(System.getProperty("maxTxSize", "10000")) * 5;
+
     public static void importRelation(GraphDatabaseService db, final DomainRelation relation, Connection con) throws SQLException {
 
 	Index<Node> oidIndex = db.index().forNodes("oid");
@@ -77,6 +79,16 @@ public class RelationImporter {
 
 		one.createRelationshipTo(other, type);
 		other.createRelationshipTo(one, type);
+
+		/*
+		 * Commit the Transaction every "maxTxSize" records.
+		 */
+		if (count % maxTxSize == 0) {
+		    logger.trace("Committing Neo4j Transaction. Got " + count + " references so far.");
+		    tx.success();
+		    tx.finish();
+		    tx = db.beginTx();
+		}
 	    }
 
 	    tx.success();
