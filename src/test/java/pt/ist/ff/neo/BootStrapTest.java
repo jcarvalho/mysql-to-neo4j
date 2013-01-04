@@ -13,7 +13,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.graphdb.factory.GraphDatabaseFactory;
+import org.neo4j.unsafe.batchinsert.BatchInserters;
 
 import pt.ist.fenixframework.pstm.dml.FenixDomainModel;
 import dml.DmlCompiler;
@@ -44,7 +44,7 @@ public class BootStrapTest {
 
 	    String graphDbLocation = System.getProperty("graphDBLocation", "/sandbox/ff");
 
-	    db = new GraphDatabaseFactory().newEmbeddedDatabase(graphDbLocation);
+	    db = BatchInserters.batchDatabase(graphDbLocation);
 
 	    String url = "jdbc:mysql://localhost:3306/dot";
 	    String user = "root";
