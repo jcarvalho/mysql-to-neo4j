@@ -6,14 +6,15 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Timestamp;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.joda.time.DateTime;
-import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.graphdb.Node;
-import org.neo4j.graphdb.Transaction;
-import org.neo4j.graphdb.index.Index;
+import org.neo4j.unsafe.batchinsert.BatchInserter;
+import org.neo4j.unsafe.batchinsert.BatchInserterIndex;
+import org.neo4j.unsafe.batchinsert.BatchInserterIndexProvider;
 
 import dml.DomainClass;
 import dml.Slot;
@@ -22,19 +23,18 @@ public class ClassImporter {
 
     private static final Logger logger = LogManager.getLogger(ClassImporter.class);
 
-    private static final int maxTxSize = Integer.parseInt(System.getProperty("maxTxSize", "10000"));
+    public static void importClass(BatchInserter db, BatchInserterIndexProvider indexProvider, DomainClass domainClass,
+	    Connection con) throws SQLException {
 
-    public static void importClass(GraphDatabaseService db, DomainClass domainClass, Connection con) throws SQLException {
+	Long classNode = indexProvider.nodeIndex("className", null).get("className", domainClass.getFullName()).getSingle();
 
-	Node domainClassNode = db.index().forNodes("className").get("className", domainClass.getFullName()).getSingle();
+	BatchInserterIndex oidIndex = indexProvider.nodeIndex("oid", null);
 
-	Index<Node> oidIndex = db.index().forNodes("oid");
-
-	if (domainClassNode == null && domainClass.getName().equals("PersistentRoot")) {
+	if (classNode == null && domainClass.getName().equals("PersistentRoot")) {
 	    return;
 	}
 
-	if (domainClassNode == null) {
+	if (classNode == null) {
 	    throw new RuntimeException("Bootstrapping went wrong, node missing for class: " + domainClass.getFullName());
 	}
 
@@ -60,14 +60,10 @@ public class ClassImporter {
 
 	int count = 0;
 
-	Transaction tx = db.beginTx();
-
 	while (rs.next()) {
 	    count++;
 
-	    Node newNode = db.createNode();
-
-	    domainClassNode.createRelationshipTo(newNode, Relations.INSTANCE_OF);
+	    Map<String, Object> properties = new HashMap<>();
 
 	    DomainClass cls = domainClass;
 
@@ -83,7 +79,7 @@ public class ClassImporter {
 		    }
 
 		    if (obj != null)
-			newNode.setProperty(slot.getName(), obj);
+			properties.put(slot.getName(), obj);
 		}
 
 		cls = (DomainClass) cls.getSuperclass();
@@ -91,22 +87,20 @@ public class ClassImporter {
 
 	    Long oid = rs.getLong("OID");
 
-	    newNode.setProperty("oid", oid);
+	    properties.put("oid", oid);
 
-	    oidIndex.add(newNode, "oid", oid);
+	    long newNode = db.createNode(properties);
 
-	    /*
-	     * Commit the Transaction every "maxTxSize" records.
-	     */
-	    if (count % maxTxSize == 0) {
-		logger.trace("Committing Neo4j Transaction. Got " + count + " objects so far.");
-		tx.success();
-		tx.finish();
-		tx = db.beginTx();
-	    }
+	    db.createRelationship(classNode, newNode, Relations.INSTANCE_OF, null);
+
+	    Map<String, Object> indexProperties = new HashMap<>();
+	    indexProperties.put("oid", oid);
+
+	    oidIndex.add(newNode, indexProperties);
+
 	}
-	tx.success();
-	tx.finish();
+
+	oidIndex.flush();
 
 	rs.close();
 	st.close();
@@ -114,5 +108,4 @@ public class ClassImporter {
 	logger.info("Finished importing. Copied " + count + " objects.");
 
     }
-
 }

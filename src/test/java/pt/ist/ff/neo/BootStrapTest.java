@@ -12,7 +12,9 @@ import java.util.Scanner;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.neo4j.graphdb.GraphDatabaseService;
+import org.neo4j.index.lucene.unsafe.batchinsert.LuceneBatchInserterIndexProvider;
+import org.neo4j.unsafe.batchinsert.BatchInserter;
+import org.neo4j.unsafe.batchinsert.BatchInserterIndexProvider;
 import org.neo4j.unsafe.batchinsert.BatchInserters;
 
 import pt.ist.fenixframework.pstm.dml.FenixDomainModel;
@@ -25,7 +27,9 @@ public class BootStrapTest {
 
     private DomainModel model;
 
-    private GraphDatabaseService db;
+    private BatchInserter db;
+
+    private BatchInserterIndexProvider indexProvider;
 
     private Connection con = null;
 
@@ -44,7 +48,9 @@ public class BootStrapTest {
 
 	    String graphDbLocation = System.getProperty("graphDBLocation", "/sandbox/ff");
 
-	    db = BatchInserters.batchDatabase(graphDbLocation);
+	    db = BatchInserters.inserter(graphDbLocation);
+
+	    indexProvider = new LuceneBatchInserterIndexProvider(db);
 
 	    String url = "jdbc:mysql://localhost:3306/dot";
 	    String user = "root";
@@ -61,14 +67,14 @@ public class BootStrapTest {
     public void create() {
 
 	try {
-	    Bootstrap.bootStrap(con, db, model);
+	    Bootstrap.bootStrap(con, db, indexProvider, model);
 
 	    for (final DomainClass domainClass : model.getDomainClasses()) {
-		ClassImporter.importClass(db, domainClass, con);
+		ClassImporter.importClass(db, indexProvider, domainClass, con);
 	    }
 
 	    for (final DomainRelation relation : model.getDomainRelations()) {
-		RelationImporter.importRelation(db, relation, con);
+		RelationImporter.importRelation(db, indexProvider, relation, con);
 	    }
 
 	} catch (SQLException e) {
@@ -80,6 +86,7 @@ public class BootStrapTest {
 
     @After
     public void tear() throws SQLException {
+	indexProvider.shutdown();
 	db.shutdown();
 	con.close();
     }

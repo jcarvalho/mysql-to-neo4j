@@ -7,11 +7,10 @@ import java.sql.Statement;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.RelationshipType;
-import org.neo4j.graphdb.Transaction;
-import org.neo4j.graphdb.index.Index;
+import org.neo4j.unsafe.batchinsert.BatchInserter;
+import org.neo4j.unsafe.batchinsert.BatchInserterIndex;
+import org.neo4j.unsafe.batchinsert.BatchInserterIndexProvider;
 
 import dml.DomainClass;
 import dml.DomainRelation;
@@ -21,11 +20,10 @@ public class RelationImporter {
 
     private static final Logger logger = LogManager.getLogger(RelationImporter.class);
 
-    private static final int maxTxSize = Integer.parseInt(System.getProperty("maxTxSize", "10000")) * 5;
+    public static void importRelation(BatchInserter db, BatchInserterIndexProvider indexProvider, final DomainRelation relation,
+	    Connection con) throws SQLException {
 
-    public static void importRelation(GraphDatabaseService db, final DomainRelation relation, Connection con) throws SQLException {
-
-	Index<Node> oidIndex = db.index().forNodes("oid");
+	BatchInserterIndex oidIndex = indexProvider.nodeIndex("oid", null);
 
 	Role dataRole = getDataRole(relation);
 
@@ -60,16 +58,14 @@ public class RelationImporter {
 
 	    int count = 0;
 
-	    Transaction tx = db.beginTx();
-
 	    while (rs.next()) {
 		count++;
 
 		Long oid = rs.getLong("OID");
 		Long otherOid = rs.getLong(relationCol);
 
-		Node one = oidIndex.get("oid", oid).getSingle();
-		Node other = oidIndex.get("oid", otherOid).getSingle();
+		Long one = oidIndex.get("oid", oid).getSingle();
+		Long other = oidIndex.get("oid", otherOid).getSingle();
 
 		if (one == null || other == null) {
 		    logger.error("\t\tNode does not exist! Original OID: " + oid + ". Other OID : " + otherOid);
@@ -77,22 +73,10 @@ public class RelationImporter {
 		    continue;
 		}
 
-		one.createRelationshipTo(other, type);
-		other.createRelationshipTo(one, type);
+		db.createRelationship(one, other, type, null);
+		db.createRelationship(other, one, type, null);
 
-		/*
-		 * Commit the Transaction every "maxTxSize" records.
-		 */
-		if (count % maxTxSize == 0) {
-		    logger.trace("Committing Neo4j Transaction. Got " + count + " references so far.");
-		    tx.success();
-		    tx.finish();
-		    tx = db.beginTx();
-		}
 	    }
-
-	    tx.success();
-	    tx.finish();
 
 	    logger.info("Finished importing relations. Imported " + count + " instances.");
 
