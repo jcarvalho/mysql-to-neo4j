@@ -4,7 +4,6 @@ import java.io.InputStream;
 import java.net.URL;
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
@@ -77,7 +76,7 @@ public class BootStrapTest {
 		RelationImporter.importRelation(db, indexProvider, relation, con);
 	    }
 
-	} catch (SQLException e) {
+	} catch (Exception e) {
 	    e.printStackTrace();
 	    throw new RuntimeException(e);
 	}
@@ -85,9 +84,14 @@ public class BootStrapTest {
     }
 
     @After
-    public void tear() throws SQLException {
-	indexProvider.shutdown();
-	db.shutdown();
-	con.close();
+    public void tear() {
+	try {
+	    indexProvider.shutdown();
+	    db.shutdown();
+	    con.close();
+	} catch (Exception e) {
+	    e.printStackTrace();
+	    throw new RuntimeException(e);
+	}
     }
 }
