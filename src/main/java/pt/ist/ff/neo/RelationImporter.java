@@ -23,6 +23,8 @@ public class RelationImporter {
     public static void importRelation(BatchInserter db, BatchInserterIndexProvider indexProvider, final DomainRelation relation,
 	    Connection con) throws SQLException {
 
+	logger.info("Importing relation " + relation.getName());
+
 	BatchInserterIndex oidIndex = indexProvider.nodeIndex("oid", null);
 
 	Role dataRole = getDataRole(relation);
@@ -33,6 +35,11 @@ public class RelationImporter {
 	}
 
 	Role otherRole = dataRole.getOtherRole();
+
+	if (otherRole.getName() == null) {
+	    logger.warn("Ignoring anonymous relations for now: " + relation.getFullName());
+	    return;
+	}
 
 	RelationshipType type = new RelationshipType() {
 
@@ -46,9 +53,12 @@ public class RelationImporter {
 
 	String dbName = Util.getDBName(classToGet.getName());
 
-	String relationCol = "OID_" + Util.getDBName(otherRole.getName());
+	if (dbName.equals("PERSISTENT_ROOT")) {
+	    logger.warn("Not handling connections to Persistent Root yet...");
+	    return;
+	}
 
-	logger.info("Importing relation " + relation.getName());
+	String relationCol = "OID_" + Util.getDBName(otherRole.getName());
 
 	logger.trace("\tRelation is on table " + dbName + ". Column: " + relationCol);
 
