@@ -25,7 +25,6 @@ public class RelationImporter {
 
 	logger.info("Importing relation " + relation.getName());
 
-	BatchInserterIndex oidIndex = indexProvider.nodeIndex("oid", null);
 
 	Role dataRole = getDataRole(relation);
 
@@ -35,6 +34,9 @@ public class RelationImporter {
 	}
 
 	Role otherRole = dataRole.getOtherRole();
+
+	BatchInserterIndex oneIndex = indexProvider.nodeIndex(dataRole.getType().getFullName(), null);
+	BatchInserterIndex otherIndex = indexProvider.nodeIndex(otherRole.getType().getFullName(), null);
 
 	if (otherRole.getName() == null) {
 	    logger.warn("Ignoring anonymous relations for now: " + relation.getFullName());
@@ -74,8 +76,8 @@ public class RelationImporter {
 		Long oid = rs.getLong("OID");
 		Long otherOid = rs.getLong(relationCol);
 
-		Long one = oidIndex.get("oid", oid).getSingle();
-		Long other = oidIndex.get("oid", otherOid).getSingle();
+		Long one = oneIndex.get("oid", oid).getSingle();
+		Long other = otherIndex.get("oid", otherOid).getSingle();
 
 		if (one == null || other == null) {
 		    logger.error("\t\tNode does not exist! Original OID: " + oid + ". Other OID : " + otherOid);

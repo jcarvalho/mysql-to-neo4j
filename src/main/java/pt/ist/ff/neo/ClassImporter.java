@@ -28,7 +28,7 @@ public class ClassImporter {
 
 	Long classNode = indexProvider.nodeIndex("className", null).get("className", domainClass.getFullName()).getSingle();
 
-	BatchInserterIndex oidIndex = indexProvider.nodeIndex("oid", null);
+	BatchInserterIndex classIndex = indexProvider.nodeIndex(domainClass.getFullName(), null);
 
 	if (classNode == null && domainClass.getName().equals("PersistentRoot")) {
 	    return;
@@ -96,11 +96,11 @@ public class ClassImporter {
 	    Map<String, Object> indexProperties = new HashMap<>();
 	    indexProperties.put("oid", oid);
 
-	    oidIndex.add(newNode, indexProperties);
+	    classIndex.add(newNode, indexProperties);
 
 	}
 
-	oidIndex.flush();
+	classIndex.flush();
 
 	rs.close();
 	st.close();

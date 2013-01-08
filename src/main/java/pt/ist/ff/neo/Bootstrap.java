@@ -26,11 +26,11 @@ public class Bootstrap {
 	/*
 	 * Create the className index, and cache its contents.
 	 */
-	BatchInserterIndex classIndex = indexProvider.nodeIndex("className", MapUtil.stringMap("type", "exact"));
+	Map<String, String> luceneProperties = MapUtil.stringMap("type", "exact");
+	BatchInserterIndex classIndex = indexProvider.nodeIndex("className", luceneProperties);
 	classIndex.setCacheCapacity("className", model.getDomainClasses().size());
 
 	// Ensure OID index exists
-	indexProvider.nodeIndex("oid", MapUtil.stringMap("type", "exact")).flush();
 
 	logger.info("Acquired root node, created indexes. Now boostrapping " + model.getDomainClasses().size()
 		+ " domain classes.");
@@ -45,6 +45,8 @@ public class Bootstrap {
 		// TODO How to handle this?
 		continue;
 	    }
+
+	    indexProvider.nodeIndex(domainClass.getFullName(), luceneProperties).flush();
 
 	    ResultSet rs = con.createStatement().executeQuery(
 		    "SELECT * FROM FF$DOMAIN_CLASS_INFO WHERE DOMAIN_CLASS_NAME = '" + domainClass.getFullName() + "'");
