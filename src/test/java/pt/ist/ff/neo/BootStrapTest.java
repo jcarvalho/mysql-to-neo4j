@@ -28,8 +28,6 @@ public class BootStrapTest {
 
     private BatchInserter db;
 
-    private BatchInserterIndexProvider indexProvider;
-
     private Connection con = null;
 
     @Before
@@ -49,8 +47,6 @@ public class BootStrapTest {
 
 	    db = BatchInserters.inserter(graphDbLocation);
 
-	    indexProvider = new LuceneBatchInserterIndexProvider(db);
-
 	    String url = "jdbc:mysql://localhost:3306/dot";
 	    String user = "root";
 	    String password = "";
@@ -66,13 +62,20 @@ public class BootStrapTest {
     public void create() {
 
 	try {
-	    Bootstrap.bootStrap(con, db, indexProvider, model);
+	    {
+		BatchInserterIndexProvider indexProvider = new LuceneBatchInserterIndexProvider(db);
+		Bootstrap.bootStrap(con, db, indexProvider, model);
+		indexProvider.shutdown();
+	    }
 
 	    for (final DomainClass domainClass : model.getDomainClasses()) {
+		BatchInserterIndexProvider indexProvider = new LuceneBatchInserterIndexProvider(db);
 		ClassImporter.importClass(db, indexProvider, domainClass, con);
+		indexProvider.shutdown();
 	    }
 
 	    for (final DomainRelation relation : model.getDomainRelations()) {
+		BatchInserterIndexProvider indexProvider = new LuceneBatchInserterIndexProvider(db);
 		RelationImporter.importRelation(db, indexProvider, relation, con);
 	    }
 
@@ -86,7 +89,6 @@ public class BootStrapTest {
     @After
     public void tear() {
 	try {
-	    indexProvider.shutdown();
 	    db.shutdown();
 	    con.close();
 	} catch (Exception e) {
