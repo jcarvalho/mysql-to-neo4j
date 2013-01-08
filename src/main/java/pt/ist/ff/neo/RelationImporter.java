@@ -4,10 +4,12 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.neo4j.graphdb.RelationshipType;
+import org.neo4j.helpers.collection.MapUtil;
 import org.neo4j.unsafe.batchinsert.BatchInserter;
 import org.neo4j.unsafe.batchinsert.BatchInserterIndex;
 import org.neo4j.unsafe.batchinsert.BatchInserterIndexProvider;
@@ -19,6 +21,8 @@ import dml.Role;
 public class RelationImporter {
 
     private static final Logger logger = LogManager.getLogger(RelationImporter.class);
+
+    private static final Map<String, String> CONFIG_MAP = MapUtil.stringMap("type", "exact");
 
     public static void importRelation(BatchInserter db, BatchInserterIndexProvider indexProvider, final DomainRelation relation,
 	    Connection con) throws SQLException {
@@ -35,8 +39,8 @@ public class RelationImporter {
 
 	Role otherRole = dataRole.getOtherRole();
 
-	BatchInserterIndex oneIndex = indexProvider.nodeIndex(dataRole.getType().getFullName(), null);
-	BatchInserterIndex otherIndex = indexProvider.nodeIndex(otherRole.getType().getFullName(), null);
+	BatchInserterIndex oneIndex = indexProvider.nodeIndex(dataRole.getType().getFullName(), CONFIG_MAP);
+	BatchInserterIndex otherIndex = indexProvider.nodeIndex(otherRole.getType().getFullName(), CONFIG_MAP);
 
 	if (otherRole.getName() == null) {
 	    logger.warn("Ignoring anonymous relations for now: " + relation.getFullName());

@@ -12,6 +12,7 @@ import java.util.Map;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.joda.time.DateTime;
+import org.neo4j.helpers.collection.MapUtil;
 import org.neo4j.unsafe.batchinsert.BatchInserter;
 import org.neo4j.unsafe.batchinsert.BatchInserterIndex;
 import org.neo4j.unsafe.batchinsert.BatchInserterIndexProvider;
@@ -22,6 +23,8 @@ import dml.Slot;
 public class ClassImporter {
 
     private static final Logger logger = LogManager.getLogger(ClassImporter.class);
+
+    private static final Map<String, String> CONFIG_MAP = MapUtil.stringMap("type", "exact");
 
     public static void importClass(BatchInserter db, BatchInserterIndexProvider indexProvider, DomainClass domainClass,
 	    Connection con) throws SQLException {
@@ -36,7 +39,7 @@ public class ClassImporter {
 	    throw new RuntimeException("Bootstrapping went wrong, node missing for class: " + domainClass.getFullName());
 	}
 
-        BatchInserterIndex classIndex = indexProvider.nodeIndex(domainClass.getFullName(), null);
+	BatchInserterIndex classIndex = indexProvider.nodeIndex(domainClass.getFullName(), CONFIG_MAP);
 
 	DomainClass topClass = Util.getTopClass(domainClass);
 
