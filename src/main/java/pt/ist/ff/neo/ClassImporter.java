@@ -28,8 +28,6 @@ public class ClassImporter {
 
 	Long classNode = indexProvider.nodeIndex("className", null).get("className", domainClass.getFullName()).getSingle();
 
-	BatchInserterIndex classIndex = indexProvider.nodeIndex(domainClass.getFullName(), null);
-
 	if (classNode == null && domainClass.getName().equals("PersistentRoot")) {
 	    return;
 	}
@@ -37,6 +35,8 @@ public class ClassImporter {
 	if (classNode == null) {
 	    throw new RuntimeException("Bootstrapping went wrong, node missing for class: " + domainClass.getFullName());
 	}
+
+        BatchInserterIndex classIndex = indexProvider.nodeIndex(domainClass.getFullName(), null);
 
 	DomainClass topClass = Util.getTopClass(domainClass);
 
