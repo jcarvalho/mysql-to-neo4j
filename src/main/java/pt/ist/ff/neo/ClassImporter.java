@@ -29,7 +29,7 @@ public class ClassImporter {
     public static void importClass(BatchInserter db, BatchInserterIndexProvider indexProvider, DomainClass domainClass,
 	    Connection con) throws SQLException {
 
-	Long classNode = indexProvider.nodeIndex("className", null).get("className", domainClass.getFullName()).getSingle();
+	Long classNode = indexProvider.nodeIndex("className", CONFIG_MAP).get("className", domainClass.getFullName()).getSingle();
 
 	if (classNode == null && domainClass.getName().equals("PersistentRoot")) {
 	    return;
